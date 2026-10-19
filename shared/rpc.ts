@@ -48,7 +48,7 @@ export const ReopenSummarySchema = z.object({
   /** Busy agents move when their current turn ends. */
   deferred: z.array(z.string()),
   failed: z.array(z.object({ agentId: z.string(), error: z.string() })),
-  /** A conversation that could not move in place and continues in this new agent instead. */
+  /** A conversation that could not move in place and continues in this account's agent instead. */
   continuedIn: z.object({ agentId: z.string(), title: z.string() }).nullable().default(null),
 });
 export type ReopenSummary = z.infer<typeof ReopenSummarySchema>;

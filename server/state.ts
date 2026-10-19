@@ -49,6 +49,34 @@ export const LiveSessionSchema = z.object({
 });
 export type LiveSession = z.infer<typeof LiveSessionSchema>;
 
+const TimelineMarkSchema = z.object({ epoch: z.string(), seq: z.number().int().nonnegative() });
+const ContinuationMemberSchema = z.object({
+  accountId: z.string(),
+  identity: z.string().nullable(),
+  email: z.string().nullable(),
+  /** Timeline ranges already known by this tab; no conversation text is stored here. */
+  seen: z.record(z.string(), TimelineMarkSchema).default({}),
+  /** Last observed source position when this tab handed the task away. */
+  parked: TimelineMarkSchema.optional(),
+  /** Reserved/created without a handoff; not a source of task history yet. */
+  unstarted: z.boolean().optional(),
+});
+export const ContinuationChainSchema = z.object({
+  activeAgentId: z.string(),
+  members: z.record(z.string(), ContinuationMemberSchema),
+  /** A full fallback that replaces history from deleted/moved tabs. */
+  baselineMessageId: z.string().optional(),
+  /** Written before dispatch. An uncertain dispatch must never start a second turn. */
+  pending: z.object({
+    agentId: z.string(),
+    messageId: z.string(),
+    seen: z.record(z.string(), TimelineMarkSchema),
+    stage: z.enum(["creating", "sending"]).default("sending"),
+    replaceHistory: z.array(z.string()).optional(),
+  }).optional(),
+});
+export type ContinuationChain = z.infer<typeof ContinuationChainSchema>;
+
 export const StoredStateSchema = z.object({
   version: z.literal(1).default(1),
   accounts: z.array(StoredAccountSchema).default([]),
@@ -59,6 +87,7 @@ export const StoredStateSchema = z.object({
   bindings: z.record(z.string(), BindingSchema).default({}),
   /** Which account each agent's live provider session was opened with. */
   sessions: z.record(z.string(), LiveSessionSchema).default({}),
+  continuations: z.record(z.string(), ContinuationChainSchema).default({}),
 });
 export type StoredState = z.infer<typeof StoredStateSchema>;
 
@@ -102,6 +131,7 @@ export function salvageState(raw: unknown): { state: StoredState; dropped: boole
       defaults,
       bindings: records(BindingSchema, source.bindings),
       sessions: records(LiveSessionSchema, source.sessions),
+      continuations: records(ContinuationChainSchema, source.continuations),
     },
     dropped: true,
   };

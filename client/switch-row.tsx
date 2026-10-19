@@ -56,7 +56,7 @@ export function describeRow(row: SwitchRow): string {
   switch (row.outcome) {
     case "continued":
       return row.continuedIn
-        ? `${lead}ChatGPT conversations can't change accounts, so this one continues in a new agent: “${row.continuedIn.title}” on ${row.to}.`
+        ? `${lead}ChatGPT conversations can't change accounts, so this task continues in “${row.continuedIn.title}” on ${row.to}.`
         : `${lead}Continuing on ${row.to}.`;
     case "stayed":
       return `${lead}This conversation stays on ${row.from ?? "its account"}.${row.detail ? ` ${row.detail}` : ""}`;

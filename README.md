@@ -53,7 +53,11 @@ Then open **Accounts (ZeroSub)** in the sidebar.
 ### Claude vs. ChatGPT when switching mid-conversation
 
 - **Claude:** a conversation moves to another account in place. The agent reopens on the new account with its full history and continues.
-- **ChatGPT (Codex):** Codex encrypts its reasoning per ChatGPT account, so another account can't read an existing thread. The thread stays on its account. When it hits a limit, or you pick another account for it, ZeroSub starts a **continuation agent** on the other account. It goes in the same workspace and gets a transcript of the conversation so far, so the work keeps going. New Codex agents simply start on the chosen account.
+- **ChatGPT (Codex):** Codex encrypts its reasoning per ChatGPT account, so another account can't read an existing thread. The thread stays on its account. When it hits a limit, or you pick another account for it, ZeroSub continues in that task's tab for the other account, creating a **continuation agent** in the same workspace only on the first visit. Switching A → B → A → B reuses the two tabs. Independent tasks keep separate tabs, even in the same workspace.
+  - A returning tab receives user instructions and progress since its last visit, and is asked to inspect the current files and Git diff before continuing. ZeroSub keeps timeline positions across plugin restarts and avoids copying its own handoff prompts again. If an earlier tab has been deleted or moved, a full handoff preserves the current tab's available history; later switches return to incremental updates.
+  - Reuse requires the same provider, workspace, directory, account identity and permission mode. A missing, archived or reassigned tab is replaced. A busy tab, a pending permission request, a changed standby conversation or a different permission mode stops the switch with an explanation; finish or inspect that tab first. Removed, signed-out, disabled and limited accounts cannot receive a handoff.
+  - If prompt delivery cannot be confirmed after a disconnect, ZeroSub stops rather than sending twice. Retrying checks the destination's timeline for the handoff. If delivery is still uncertain, inspect that tab and archive it before retrying. Creating a tab without starting work can be retried safely.
+  - Existing continuation labels are adopted on the first switch after upgrading. Older releases can still read the account pins, but discard the new reuse metadata when saving the registry. New Codex agents simply start on the chosen account.
 
 ### Banked resets
 
@@ -106,7 +110,7 @@ ZeroSub never implements OAuth itself and never copies credentials between accou
 
 ## Privacy and security
 
-- Credentials stay in the CLIs' own stores. ZeroSub's registry (`$PASEO_HOME/zerosub/state.json`) holds only account names, emails, plans and which agent uses which account.
+- Credentials stay in the CLIs' own stores. ZeroSub's registry (`$PASEO_HOME/zerosub/state.json`) holds account names, emails, plans, which agent uses which account, and continuation links with timeline positions. Handoff text stays in the agents' conversation histories; it isn't copied into the registry.
 - To show Claude usage, ZeroSub reads each account's current access token and calls Anthropic's usage endpoint, the same way Paseo's built-in usage display and `/usage` do. It never logs or stores tokens and never refreshes them itself. When you refresh usage (the ↻ button beside the title) or use a reset and a token has expired, it runs `claude -p /usage` so Claude Code renews its own sign-in. Codex usage comes from `codex app-server`.
 - Using a banked reset calls the provider's own reset endpoint with that account's sign-in, and only after you confirm (or turn on automatic use).
 - Removing an account moves its agents to the default account, then signs it out (`claude auth logout` / `codex` logout) and deletes its home. This happens once no agent is mid-turn on it. Abandoned sign-ins are cleaned up the same way.

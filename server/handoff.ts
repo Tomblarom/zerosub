@@ -128,6 +128,9 @@ export async function continueInNewAgent(options: {
   target?: ContinuationTarget;
   /** What to call the session that stopped, e.g. `Claude Code`. */
   previous?: string;
+  agentId?: string;
+  /** Create the pre-bound tab first; the caller delivers its handoff separately. */
+  deferPrompt?: boolean;
 }): Promise<Continuation> {
   const { paseo, sourceAgentId } = options;
   const refreshed = await paseo.agents.ref(sourceAgentId).refresh();
@@ -135,7 +138,7 @@ export async function continueInNewAgent(options: {
   if (!source) throw new Error("The original agent is no longer available.");
 
   let timeline = options.timeline;
-  if (!timeline) {
+  if (!timeline && !options.deferPrompt) {
     const page = await paseo.agents.ref(sourceAgentId).timeline.refetch({ direction: "tail", limit: 500 });
     timeline = page.entries.map((entry) => entry.item);
   }
@@ -149,7 +152,7 @@ export async function continueInNewAgent(options: {
     : (source.model ?? source.runtimeInfo?.model ?? (await defaultModel(paseo, provider)));
   if (!model) throw new Error(`Couldn't tell which ${provider} model to use for the new agent.`);
 
-  const agentId = randomUUID();
+  const agentId = options.agentId ?? randomUUID();
   await options.bind(agentId);
   const title = target
     ? `${source.title?.trim() || "Task"} (continued on ${target.label})`
@@ -161,12 +164,14 @@ export async function continueInNewAgent(options: {
         provider: `${provider}/${model}`,
         ...(source.currentModeId ? { modeId: source.currentModeId } : {}),
         ...(source.thinkingOptionId ? { thinkingOptionId: source.thinkingOptionId } : {}),
+        ...(source.features ? { featureValues: Object.fromEntries(source.features.map((feature) => [feature.id, feature.value])) } : {}),
       };
   const request = {
     agentId,
+    ...(options.agentId ? { idempotencyKey: options.agentId } : {}),
     config,
     title,
-    prompt: continuationPrompt(buildTranscript(timeline), options.why, options.previous),
+    ...(!options.deferPrompt ? { prompt: continuationPrompt(buildTranscript(timeline ?? []), options.why, options.previous) } : {}),
     labels: { [CONTINUED_FROM_LABEL]: sourceAgentId },
   };
   if (source.workspaceId) await paseo.workspaces.ref(source.workspaceId).agents.create(request);

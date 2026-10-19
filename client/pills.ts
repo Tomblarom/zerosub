@@ -169,12 +169,12 @@ function buttonFor(
     await store.rpc(setAgentAccount, { agentId: agent.id, accountId });
   };
 
-  // Codex threads can't change ChatGPT accounts in place; picking one continues in a new agent.
+  // Codex threads can't change accounts in place; continue in this task's tab for that account.
   const movable = route?.movable ?? true;
   const items: PluginButtonMenuEntry[] = accounts.map((account, index) => ({
     kind: "item",
     id: `account-${index}`,
-    title: account.id === current.id || movable ? menuTitle(account) : `Continue on ${account.label} (new agent)`,
+    title: account.id === current.id || movable ? menuTitle(account) : `Continue on ${account.label}`,
     icon: account.id === current.id ? "CircleCheck" : movable ? "Circle" : "CopyPlus",
     disabled: account.status === "signed_out" || account.status === "disabled" || account.id === current.id,
     behavior: { kind: "action", onPress: choose(account.id) },
